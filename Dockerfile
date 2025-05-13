@@ -54,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     git \
     gettext \
+	glibc-source \
     && ln -s /usr/local/python3.12/bin/python3.12 /usr/local/bin/python \
     && ln -s /usr/local/python3.12/bin/python3.12 /usr/local/bin/python3 \
     && ln -s /usr/local/python3.12/bin/python3.12 /usr/local/bin/python3.12 \
