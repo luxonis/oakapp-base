@@ -59,12 +59,15 @@ write_connection() {
     TOKEN=$(get_data_attr "$CONNECTION_RESPONSE" "token")
 
     # Check if OAKAGENT_APP_IDENTIFIER is set to 'com.luxonis.default', fully supported is only viewer. We need to rework this part to fully support static UI.
-    if [[ "$OAKAGENT_APP_IDENTIFIER" == "com.luxonis.default" ]]; then
+   case "$OAKAGENT_APP_IDENTIFIER" in
+    "com.luxonis.default"|"viewer")
         export OAKAGENT_APP_IDENTIFIER="viewer"
-    else
+        ;;
+    *)
         export OAKAGENT_APP_IDENTIFIER="visualizer"
-        export OAKAGENT_APP_VERSION="0.10.1"
-    fi
+        export OAKAGENT_APP_VERSION="0.10.15"
+        ;;
+    esac
 
     # Print instructions for accessing the DepthAI Viewer remotely and locally
     echo "CONNECTION - To connect DepthAI Viewer remotely, open:"
@@ -75,6 +78,7 @@ write_connection() {
 
 # Loop that periodically refreshes the viewer connection link every ~10 minutes
 connection_loop() {
+    sleep 10  # Initial delay before starting the loop
     while true; do
         write_connection
         sleep 598  # 598 seconds = just under 10 minutes
