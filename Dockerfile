@@ -70,14 +70,12 @@ RUN apt-get install -y libgl1 \
 RUN mkdir -p /etc/service/nginx /etc/service/oak_webrtc
 
 # Add service run scripts
-COPY services/nginx-run.sh /etc/service/nginx/run
-COPY services/oak_webrtc-run.sh /etc/service/oak_webrtc/run
-COPY services/connection-run.sh /etc/service/connection/run
-RUN chmod +x /etc/service/nginx/run /etc/service/oak_webrtc/run etc/service/connection/run
+COPY --chmod=755 services/nginx-run.sh /etc/service/nginx/run
+COPY --chmod=755 services/oak_webrtc-run.sh /etc/service/oak_webrtc/run
+COPY --chmod=755 services/connection-run.sh /etc/service/connection/run
 
 # Add oak_webrtc binary
-COPY oak_webrtc/$TARGETARCH/oak_webrtc /usr/local/bin/oak_webrtc 
-RUN chmod +x /usr/local/bin/oak_webrtc 
+COPY --chmod=755 oak_webrtc/$TARGETARCH/oak_webrtc /usr/local/bin/oak_webrtc
 
 # Configure nginx and SSL
 COPY /nginx/setup.sh /tmp/setup_nginx.sh
