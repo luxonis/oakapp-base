@@ -5,7 +5,14 @@ echo "NGINX - Starting"
 export OAKAPP_STATIC_FRONTEND_PORT="${OAKAPP_STATIC_FRONTEND_PORT:-8000}"
 
 # Determine frontend configuration: either serve static files or proxy to backend
-if [ -z "$OAKAPP_STATIC_FRONTEND_PATH" ]; then
+if [ -n "$(find "$OAKAPP_STATIC_FRONTEND_PATH" -type f -print -quit)" ]; then
+    # Static path defined: serve frontend files directly
+    export OAKAPP_STATIC_FRONTEND_CONFIGURATION="
+        root $OAKAPP_STATIC_FRONTEND_PATH;
+        index index.html;
+        try_files \$uri \$uri/ /index.html;
+    "
+else
     # No static path defined: fallback to reverse proxy
     export OAKAPP_STATIC_FRONTEND_CONFIGURATION="
         proxy_pass http://127.0.0.1:8082;
@@ -14,13 +21,6 @@ if [ -z "$OAKAPP_STATIC_FRONTEND_PATH" ]; then
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-    "
-else
-    # Static path defined: serve frontend files directly
-    export OAKAPP_STATIC_FRONTEND_CONFIGURATION="
-        root $OAKAPP_STATIC_FRONTEND_PATH;
-        index index.html;
-        try_files \$uri \$uri/ /index.html;
     "
 fi
 
