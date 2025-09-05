@@ -8,7 +8,7 @@ export OAKAPP_STATIC_FRONTEND_PORT="${OAKAPP_STATIC_FRONTEND_PORT:-8000}"
 
 # Helper function to extract a specific attribute from the "data" field of a JSON response
 get_data_attr() {
-    echo "$1" | python3.12 -c "import sys, json; print(json.load(sys.stdin)['data']['$2'])"
+    echo "$1" | jq -r ".data.$2"
 }
 
 # Function to fetch a connection token from the agent service
