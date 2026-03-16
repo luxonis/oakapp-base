@@ -5,7 +5,7 @@ RUNSVDIR_PID=""
 APP_PID=""
 APP_RC=0
 TERMINATING=0
-APP_MAIN_PATH="${OAKAPP_MAIN_PY_PATH:-/app/backend/src/main.py}"
+MISSING_APP_COMMAND_RC=64
 
 stop_helpers() {
   for svc in /etc/service/*; do
@@ -53,13 +53,11 @@ graceful_shutdown() {
 trap graceful_shutdown TERM INT
 
 # Start main app outside runit
-if [[ ! -f "$APP_MAIN_PATH" ]]; then
-  echo "[entrypoint] Application script not found at ${APP_MAIN_PATH}."
-  echo "[entrypoint] Set OAKAPP_MAIN_PY_PATH to the correct Python script path."
-  echo "[entrypoint] You can set the environment variable in oakapp.toml by adding:"
-  echo "[entrypoint] [env]"
-  echo "[entrypoint] OAKAPP_MAIN_PY_PATH = \"/path/to/script.py\""
-  exit 1
+if [[ "$#" -lt 1 ]]; then
+  echo "[entrypoint] No application command was provided."
+  echo "[entrypoint] Configure oakapp.toml with an entrypoint command, for example:"
+  echo "[entrypoint] entrypoint = [\"/entrypoint.sh\", \"python3 -u /app/backend/src/main.py\", \"arg1\", ..., \"argn\"]"
+  exit "$MISSING_APP_COMMAND_RC"
 fi
 
 # Start helper services under runit
@@ -67,8 +65,12 @@ echo "[entrypoint] Starting helper scripts at /etc/service/"
 /usr/bin/runsvdir -P /etc/service &
 RUNSVDIR_PID=$!
 
-echo "[entrypoint] Starting application from ${APP_MAIN_PATH}"
-python3 -u "$APP_MAIN_PATH" &
+echo "[entrypoint] Starting application command: $*"
+if [[ "$#" -eq 1 ]]; then
+  bash -lc "exec $1" &
+else
+  bash -lc 'exec "$@"' bash "$@" &
+fi
 APP_PID=$!
 
 # Normal app exit path

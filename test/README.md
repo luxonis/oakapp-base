@@ -7,7 +7,8 @@ app for testing shutdown behaviour
       -v "$(pwd)/test/shutdown_behaviour.py:/app/main.py:ro" \
       -e OAKAPP_MAIN_PY_PATH=/app/main.py \
       --entrypoint /entrypoint.sh \
-      oakapp-test
+      oakapp-test \
+      python3 -u /app/main.py 
 
 app for testing app exception behaviour
 

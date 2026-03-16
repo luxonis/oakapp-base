@@ -15,6 +15,7 @@ signal.signal(signal.SIGTERM, handle_term)
 signal.signal(signal.SIGINT, handle_term)
 
 print("APP: started")
+print(f"APP: argv = {sys.argv}")
 
 try:
     while not shutdown_requested:
