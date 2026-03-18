@@ -33,12 +33,13 @@ RUN apt-get install -y libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create service directories
-RUN mkdir -p /etc/service/nginx /etc/service/oak_webrtc
+RUN mkdir -p /etc/service/nginx /etc/service/oak_webrtc /etc/service/connection
 
 # Add service run scripts
 COPY --chmod=755 services/nginx-run.sh /etc/service/nginx/run
 COPY --chmod=755 services/oak_webrtc-run.sh /etc/service/oak_webrtc/run
 COPY --chmod=755 services/connection-run.sh /etc/service/connection/run
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # Add oak_webrtc binary
 COPY --chmod=755 oak_webrtc/$TARGETARCH/oak_webrtc /usr/local/bin/oak_webrtc
@@ -50,6 +51,3 @@ RUN chmod +x /tmp/setup_nginx.sh && \
     rm /tmp/setup_nginx.sh
 COPY /nginx/server.template /etc/nginx/templates/site.template
 COPY /nginx/nginx.conf /etc/nginx/nginx.conf
-
-# Start runit
-CMD ["/usr/bin/runsvdir", "-P", "/etc/service"]
