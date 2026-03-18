@@ -56,7 +56,7 @@ trap graceful_shutdown TERM INT
 if [[ "$#" -lt 1 ]]; then
   echo "[entrypoint] No application command was provided."
   echo "[entrypoint] Configure oakapp.toml with an entrypoint command, for example:"
-  echo "[entrypoint] entrypoint = [\"/entrypoint.sh\", \"python3 -u /app/backend/src/main.py\", \"arg1\", ..., \"argn\"]"
+  echo "[entrypoint] entrypoint = [\"/entrypoint.sh\", \"python3\", \"-u\", \"/app/backend/src/main.py\", \"arg1\", ..., \"argn\"]"
   exit "$MISSING_APP_COMMAND_RC"
 fi
 
@@ -66,11 +66,7 @@ echo "[entrypoint] Starting helper scripts at /etc/service/"
 RUNSVDIR_PID=$!
 
 echo "[entrypoint] Starting application command: $*"
-if [[ "$#" -eq 1 ]]; then
-  bash -lc "exec $1" &
-else
-  bash -lc 'exec "$@"' bash "$@" &
-fi
+bash -lc 'exec "$@"' bash "$@" &
 APP_PID=$!
 
 # Normal app exit path
