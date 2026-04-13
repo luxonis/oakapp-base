@@ -27,7 +27,7 @@ login
 
 and push
 
-`docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8 -t luxonis/oakapp-base:latest --push .`
+`docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8 -t quay.io/luxonis/oakapp-base:latest --push .`
 
 `docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-py311 --push .`
 
