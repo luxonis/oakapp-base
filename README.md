@@ -13,6 +13,25 @@ Key Features
 # Build and deploy
 
 `docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8 -t luxonis/oakapp-base:latest --push .`
+
 `docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-py311 --push .`
+
 `docker buildx build -f ./Dockerfile.py310 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-py310 --push .`
+
 `docker buildx build -f ./Dockerfile.c++ --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-cpp --push .`
+
+and
+login
+
+	docker login quay.io
+
+and push
+
+`docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8 -t luxonis/oakapp-base:latest --push .`
+
+`docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-py311 --push .`
+
+`docker buildx build -f ./Dockerfile.py310 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-py310 --push .`
+
+`docker buildx build -f ./Dockerfile.c++ --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-cpp --push .`
+
