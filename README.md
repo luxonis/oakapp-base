@@ -1,37 +1,80 @@
 # Base Docker Image for OAK4 oakapps
 
-This Docker image is a multi-stage build designed to provide a minimal and efficient environment for running a Python applications using [DepthAI v3](https://github.com/luxonis/depthai-core) alongside Nginx and libraries neccesary to provide local and remote access to frontend via oak_webrtc binary. 
+This repository shows how the Luxonis OAK4 oakapp base images are built. It is public so users can inspect the image contents, reproduce the build locally, or use the published image as a base for their own oakapp image.
 
-Key Features
-- Base Image: debian:bookworm-slim for both build and final stages.
-- Python Version: built from source with optimizations for usage on OAK4. Images for version 3.12 and 3.11
-- Included Services:
-    - nginx for serving static content and reverse proxying. Self-signed SSL certificates generated during the build process. 
-	- oak_webrtc binary for DepthAI WebRTC functionalities.
-	- runit for service supervision.
+Publishing official `luxonis/oakapp-base` images to Docker Hub or Quay is a Luxonis maintainer task.
 
-# Build and deploy
+## Key Features
 
-`docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8 -t luxonis/oakapp-base:latest --push .`
+- Base image: `debian:bookworm-slim` for the Python images.
+- Python: built from source with optimizations for OAK4. Images are provided for Python 3.12, 3.11, and 3.10.
+- Included services:
+  - `nginx` for serving static content and reverse proxying. Self-signed SSL certificates are generated during the build process.
+  - `oak_webrtc` binary for DepthAI WebRTC functionality.
+  - `runit` for service supervision.
 
-`docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-py311 --push .`
+## oak_webrtc Binary
 
-`docker buildx build -f ./Dockerfile.py310 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-py310 --push .`
+The `oak_webrtc` binaries in this repository handle WebRTC connection establishment and data streaming over the internet using Luxonis signaling infrastructure. The source code for this component is maintained in a private Luxonis repository and is not part of this public repository.
 
-`docker buildx build -f ./Dockerfile.c++ --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-cpp --push .`
+## Use As A Base Image
 
-and
-login
+Use the published image as the base for your own app image:
 
-	docker login quay.io
+```Dockerfile
+FROM luxonis/oakapp-base:1.2.8
 
-and push
+COPY . /app
+WORKDIR /app
 
-`docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8 -t quay.io/luxonis/oakapp-base:latest --push .`
+ENTRYPOINT ["/entrypoint.sh", "python3", "-u", "/app/main.py"]
+```
 
-`docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-py311 --push .`
+Python-version-specific tags are also available:
 
-`docker buildx build -f ./Dockerfile.py310 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-py310 --push .`
+- `luxonis/oakapp-base:1.2.8`
+- `luxonis/oakapp-base:1.2.8-py311`
+- `luxonis/oakapp-base:1.2.8-py310`
+- `luxonis/oakapp-base:1.2.8-cpp`
 
-`docker buildx build -f ./Dockerfile.c++ --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-cpp --push .`
+## Build Locally
 
+To build the images locally under your own tag:
+
+```bash
+docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t my-oakapp-base:py312 .
+docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t my-oakapp-base:py311 .
+docker buildx build -f ./Dockerfile.py310 --platform=linux/arm64 -t my-oakapp-base:py310 .
+docker buildx build -f ./Dockerfile.c++ --platform=linux/arm64 -t my-oakapp-base:cpp .
+```
+
+## Luxonis Maintainer Release Steps
+
+Only Luxonis maintainers with registry permissions should publish official images.
+
+Build and push to Docker Hub:
+
+```bash
+docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8 -t luxonis/oakapp-base:latest --push .
+docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-py311 --push .
+docker buildx build -f ./Dockerfile.py310 --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-py310 --push .
+docker buildx build -f ./Dockerfile.c++ --platform=linux/arm64 -t luxonis/oakapp-base:1.2.8-cpp --push .
+```
+
+Log in and push to Quay:
+
+```bash
+docker login quay.io
+
+docker buildx build -f ./Dockerfile.py312 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8 -t quay.io/luxonis/oakapp-base:latest --push .
+docker buildx build -f ./Dockerfile.py311 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-py311 --push .
+docker buildx build -f ./Dockerfile.py310 --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-py310 --push .
+docker buildx build -f ./Dockerfile.c++ --platform=linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.8-cpp --push .
+```
+
+Create and push an annotated git tag for the new base image version:
+
+```bash
+git tag -a X.Y.Z <commit_hash> -m "<tagging_message>"
+git push origin X.Y.Z
+```
