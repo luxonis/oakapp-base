@@ -78,8 +78,14 @@ COPY --chmod=755 services/oak_webrtc-run.sh /etc/service/oak_webrtc/run
 COPY --chmod=755 services/connection-run.sh /etc/service/connection/run
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
-# Add oak_webrtc binary
-COPY --chmod=755 oak_webrtc/$TARGETARCH/oak_webrtc /usr/local/bin/oak_webrtc
+# Add oak_webrtc binary, downloaded from the Luxonis release bucket.
+# OAK_WEBRTC_VERSION is empty by default, which installs the current stable release.
+ARG OAK_WEBRTC_BASE_URL=https://oakagent-releases.luxonis.com
+ARG OAK_WEBRTC_VERSION=
+COPY --chmod=755 scripts/fetch-oak-webrtc.sh /tmp/fetch-oak-webrtc.sh
+RUN OAK_WEBRTC_BASE_URL="$OAK_WEBRTC_BASE_URL" OAK_WEBRTC_VERSION="$OAK_WEBRTC_VERSION" \
+    /tmp/fetch-oak-webrtc.sh \
+    && rm /tmp/fetch-oak-webrtc.sh
 
 # Configure nginx and SSL
 COPY /nginx/setup.sh /tmp/setup_nginx.sh
