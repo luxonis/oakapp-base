@@ -22,9 +22,32 @@ concurrency:
   group: release-images-${{ inputs.version }}
   cancel-in-progress: false
 
+env:
+  OAK_WEBRTC_BASE_URL: https://oakagent-releases.luxonis.com
+
 jobs:
+  resolve-oak-webrtc:
+    name: Resolve oak_webrtc version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      # Resolved once so every image variant and platform embeds the same binary,
+      # even if the stable pointer moves during the release.
+      - id: resolve
+        env:
+          REQUESTED_VERSION: ${{ inputs.oak_webrtc_version }}
+        run: |
+          version="$REQUESTED_VERSION"
+          if [ -z "$version" ]; then
+            version=$(curl -fsSL --retry 5 --retry-all-errors "$OAK_WEBRTC_BASE_URL/oak_webrtc/version")
+          fi
+          echo "oak_webrtc version: $version" >> "$GITHUB_STEP_SUMMARY"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build:
     name: ${{ matrix.image.suffix || 'py312' }}
+    needs: resolve-oak-webrtc
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -84,4 +107,5 @@ jobs:
           provenance: false
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
-            OAK_WEBRTC_VERSION=${{ inputs.oak_webrtc_version }}
+            OAK_WEBRTC_BASE_URL=${{ env.OAK_WEBRTC_BASE_URL }}
+            OAK_WEBRTC_VERSION=${{ needs.resolve-oak-webrtc.outputs.version }}
