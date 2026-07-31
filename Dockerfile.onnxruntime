@@ -1,0 +1,63 @@
+# ONNX Runtime (QNN/NPU) variant of the oakapp base image.
+#
+# Extends the standard py312 base image with everything needed to run
+# `onnxruntime` with the QNN execution provider on the OAK4 Hexagon NPU,
+# so apps no longer have to bootstrap the container themselves:
+#
+#   1. Debian libs the QNN EP's CPU-side libraries need (libatomic1).
+#   2. `onnxruntime` + `onnxruntime-qnn` preinstalled.
+#   3. ADSP_LIBRARY_PATH pointing at the wheel's Hexagon skels via the stable
+#      /opt/qnn-libs symlink (stub and skel must stay version-matched).
+#   4. An entrypoint hook that (a) aliases /dev/adsprpc-smd to
+#      /dev/fastrpc-cdsp, the node name the QNN EP probes for NPU detection,
+#      and (b) links the device-OS FastRPC user-space stack (libcdsprpc.so +
+#      its OE dependency chain) into the container's /usr/lib from the
+#      /host_usr_lib mount. The FastRPC libraries are proprietary device-OS
+#      binaries, so they are not shipped in the image; linking them at
+#      container start also guarantees they always match the running OS.
+#
+# Apps still need the device and /usr/lib passthrough in oakapp.toml
+# (mounts and devices cannot be baked into an image):
+#
+#   entrypoint = ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
+#   optional_devices = [
+#       "/dev/adsprpc-smd",
+#       "/dev/dma_heap/qcom,system",
+#       "/dev/dma_heap/system",
+#   ]
+#   optional_mounts = ["/usr/lib:/host_usr_lib:ro,rbind"]
+#
+# NOTE: linux/arm64 only -- the FastRPC stack and the NPU are aarch64-only.
+#
+# Build (on an aarch64 host or with binfmt emulation):
+#   docker build -f Dockerfile.onnxruntime -t oakapp-base:onnxruntime .
+
+ARG BASE_IMAGE=luxonis/oakapp-base:1.2.9
+FROM ${BASE_IMAGE} AS oakapp
+
+ARG ONNXRUNTIME_SPEC="onnxruntime==1.28.0"
+ARG ONNXRUNTIME_QNN_SPEC="onnxruntime-qnn==2.4.0"
+
+# Debian runtime deps for the QNN EP CPU-side libraries (libQnnHtp.so & co.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Preinstall ONNX Runtime and the QNN plugin execution provider so apps skip
+# the large pip download at install time.
+RUN pip install --no-cache-dir --break-system-packages \
+    "${ONNXRUNTIME_SPEC}" "${ONNXRUNTIME_QNN_SPEC}"
+
+# Stable path to the wheel's QNN libraries and Hexagon skels. The DSP-side
+# loader resolves skels through ADSP_LIBRARY_PATH; pointing it at the wheel
+# directory keeps the CPU-side stub and the DSP-side skel version-matched.
+RUN python3 -c "import os, onnxruntime_qnn as q; d = getattr(q, 'LIB_DIR_FULL_PATH', os.path.dirname(q.get_library_path())); os.symlink(d, '/opt/qnn-libs'); print('qnn libs:', d)"
+ENV ADSP_LIBRARY_PATH=/opt/qnn-libs
+
+# Entrypoint hook: create the /dev/fastrpc-cdsp alias and link the device-OS
+# FastRPC user-space stack from /host_usr_lib at container start.
+RUN mkdir -p /etc/entrypoint.d
+COPY --chmod=755 npu/npu-setup.sh /etc/entrypoint.d/10-npu-setup.sh
+
+# Refresh the entrypoint with the hook-aware version from this repo.
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
