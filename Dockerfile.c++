@@ -43,7 +43,7 @@ COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # Add oak_webrtc binary, downloaded from the Luxonis release bucket.
 # OAK_WEBRTC_VERSION is empty by default, which installs the current stable release.
-ARG OAK_WEBRTC_BASE_URL=https://oakagent-releases.luxonis.com
+ARG OAK_WEBRTC_BASE_URL=https://webrtc-releases.luxonis.com
 ARG OAK_WEBRTC_VERSION=
 COPY --chmod=755 scripts/fetch-oak-webrtc.sh /tmp/fetch-oak-webrtc.sh
 RUN OAK_WEBRTC_BASE_URL="$OAK_WEBRTC_BASE_URL" OAK_WEBRTC_VERSION="$OAK_WEBRTC_VERSION" \

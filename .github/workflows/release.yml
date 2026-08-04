@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  OAK_WEBRTC_BASE_URL: https://oakagent-releases.luxonis.com
+  OAK_WEBRTC_BASE_URL: https://webrtc-releases.luxonis.com
 
 jobs:
   resolve-oak-webrtc:
