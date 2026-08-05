@@ -76,6 +76,14 @@ Preferred path: run the **Release images** workflow (`.github/workflows/release.
 
 The manual equivalent, for maintainers with registry permissions:
 
+Run the scripted sequence:
+
+```bash
+scripts/build-and-push-release-images.sh 1.3.0
+```
+
+Or run the commands manually:
+
 Build and push to Docker Hub:
 
 ```bash
