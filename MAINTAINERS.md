@@ -8,10 +8,9 @@ Only Luxonis maintainers with registry permissions should publish official
 Run the **Release images** workflow in GitHub Actions and provide the base
 image version. Optionally provide an explicit `oak_webrtc` version; otherwise
 the workflow resolves the current stable release once and embeds it in every
-image. The workflow builds the four standard images and publishes them to both
-Docker Hub and Quay.
-
-`Dockerfile.onnxruntime` is not included in this workflow.
+image. The workflow builds all image variants and publishes them to both Docker
+Hub and Quay. The ONNX Runtime image is built after the standard Python 3.12
+image and uses that just-published image as its base.
 
 ## Manual release
 
@@ -26,6 +25,7 @@ docker buildx build -f ./Dockerfile.py312 --platform=linux/amd64,linux/arm64 -t 
 docker buildx build -f ./Dockerfile.py311 --platform=linux/amd64,linux/arm64 -t luxonis/oakapp-base:1.2.9-py311 --push .
 docker buildx build -f ./Dockerfile.py310 --platform=linux/amd64,linux/arm64 -t luxonis/oakapp-base:1.2.9-py310 --push .
 docker buildx build -f ./Dockerfile.c++ --platform=linux/amd64,linux/arm64 -t luxonis/oakapp-base:1.2.9-cpp --push .
+docker buildx build -f ./Dockerfile.onnxruntime --platform=linux/arm64 --build-arg BASE_IMAGE=luxonis/oakapp-base:1.2.9 -t luxonis/oakapp-base:1.2.9-onnxruntime --push .
 ```
 
 ## Quay
@@ -37,6 +37,7 @@ docker buildx build -f ./Dockerfile.py312 --platform=linux/amd64,linux/arm64 -t 
 docker buildx build -f ./Dockerfile.py311 --platform=linux/amd64,linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.9-py311 --push .
 docker buildx build -f ./Dockerfile.py310 --platform=linux/amd64,linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.9-py310 --push .
 docker buildx build -f ./Dockerfile.c++ --platform=linux/amd64,linux/arm64 -t quay.io/luxonis/oakapp-base:1.2.9-cpp --push .
+docker buildx build -f ./Dockerfile.onnxruntime --platform=linux/arm64 --build-arg BASE_IMAGE=luxonis/oakapp-base:1.2.9 -t quay.io/luxonis/oakapp-base:1.2.9-onnxruntime --push .
 ```
 
 Create and push an annotated git tag for the release:

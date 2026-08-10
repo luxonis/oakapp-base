@@ -12,7 +12,7 @@ build one locally to inspect or customize it.
 | `luxonis/oakapp-base:<version>-py311` | `Dockerfile.py311` | Python 3.11 |
 | `luxonis/oakapp-base:<version>-py310` | `Dockerfile.py310` | Python 3.10 |
 | `luxonis/oakapp-base:<version>-cpp` | `Dockerfile.c++` | C++ applications |
-| `oakapp-base:onnxruntime` | `Dockerfile.onnxruntime` | Locally built ONNX Runtime QNN image for the OAK4 NPU |
+| `luxonis/oakapp-base:<version>-onnxruntime` | `Dockerfile.onnxruntime` | ONNX Runtime QNN applications on the OAK4 NPU |
 
 The Python images are based on `debian:bookworm-slim` and include Python built
 for OAK4.
@@ -55,10 +55,10 @@ entrypoint.
 
 ### App Dockerfile
 
-Build an NPU-enabled app image from the locally built ONNX Runtime base image:
+Build an NPU-enabled app image from the ONNX Runtime base image:
 
 ```Dockerfile
-FROM oakapp-base:onnxruntime
+FROM luxonis/oakapp-base:<version>-onnxruntime
 
 COPY . /app
 WORKDIR /app
@@ -149,5 +149,5 @@ fixed `oak_webrtc` build.
 
 Official releases use the **Release images** workflow
 ([`.github/workflows/release.yml`](.github/workflows/release.yml)). It builds
-the four standard images and publishes them to Docker Hub and Quay. See
+all image variants and publishes them to Docker Hub and Quay. See
 [`MAINTAINERS.md`](MAINTAINERS.md) for workflow and manual release steps.
