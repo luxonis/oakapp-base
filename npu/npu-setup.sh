@@ -3,38 +3,7 @@
 #
 # Sourced by /entrypoint.sh before the app starts (see /etc/entrypoint.d).
 #
-# The QNN EP only enumerates an NPU device if /dev/fastrpc-cdsp exists
-# (onnxruntime soc_utils probes that exact path), but Luxonis OS names the
-# FastRPC node /dev/adsprpc-smd. Create an alias: prefer a proper char
-# device node (needs the mknod device-cgroup permission), fall back to a
-# symlink (works with plain `optional_devices` passthrough).
-#
 # All failures are non-fatal: apps that do not use the NPU are unaffected.
-
-_npu_setup() {
-  local alias_node=/dev/fastrpc-cdsp
-  local node=/dev/adsprpc-smd
-
-  if [ -e "$alias_node" ]; then
-    return 0
-  fi
-  if [ ! -e "$node" ]; then
-    echo "[npu-setup] $node not present; add it to optional_devices in oakapp.toml to use the NPU"
-    return 0
-  fi
-
-  local maj min
-  maj=$((16#$(stat -c '%t' "$node")))
-  min=$((16#$(stat -c '%T' "$node")))
-  if mknod "$alias_node" c "$maj" "$min" 2>/dev/null; then
-    echo "[npu-setup] created $alias_node (char $maj:$min, alias of $node)"
-  elif ln -s "$node" "$alias_node" 2>/dev/null; then
-    echo "[npu-setup] created symlink $alias_node -> $node (mknod not permitted)"
-  else
-    echo "[npu-setup] WARNING: could not create $alias_node; the QNN EP will not detect the NPU"
-  fi
-  return 0
-}
 
 # FastRPC user-space stack (libcdsprpc.so + its OE dependency chain). These
 # are proprietary device-OS binaries, so they are NOT shipped in the image.
@@ -79,7 +48,6 @@ _fastrpc_setup() {
   return 0
 }
 
-_npu_setup
 _fastrpc_setup
 
 # Hexagon skels must match the CPU-side QNN stub; /opt/qnn-libs points at the

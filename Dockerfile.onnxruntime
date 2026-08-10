@@ -8,9 +8,8 @@
 #   2. `onnxruntime` + `onnxruntime-qnn` preinstalled.
 #   3. ADSP_LIBRARY_PATH pointing at the wheel's Hexagon skels via the stable
 #      /opt/qnn-libs symlink (stub and skel must stay version-matched).
-#   4. An entrypoint hook that (a) aliases /dev/adsprpc-smd to
-#      /dev/fastrpc-cdsp, the node name the QNN EP probes for NPU detection,
-#      and (b) links the device-OS FastRPC user-space stack (libcdsprpc.so +
+#   4. An entrypoint hook that links the device-OS FastRPC user-space stack
+#      (libcdsprpc.so +
 #      its OE dependency chain) into the container's /usr/lib from the
 #      /host_usr_lib mount. The FastRPC libraries are proprietary device-OS
 #      binaries, so they are not shipped in the image; linking them at
@@ -21,7 +20,8 @@
 #
 #   entrypoint = ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
 #   optional_devices = [
-#       "/dev/adsprpc-smd",
+#       "/dev/fastrpc-cdsp", # ONNX Runtime QNN device probe
+#       "/dev/adsprpc-smd",  # libcdsprpc.so FastRPC transport
 #       "/dev/dma_heap/qcom,system",
 #       "/dev/dma_heap/system",
 #   ]
@@ -54,8 +54,8 @@ RUN pip install --no-cache-dir --break-system-packages \
 RUN python3 -c "import os, onnxruntime_qnn as q; d = getattr(q, 'LIB_DIR_FULL_PATH', os.path.dirname(q.get_library_path())); os.symlink(d, '/opt/qnn-libs'); print('qnn libs:', d)"
 ENV ADSP_LIBRARY_PATH=/opt/qnn-libs
 
-# Entrypoint hook: create the /dev/fastrpc-cdsp alias and link the device-OS
-# FastRPC user-space stack from /host_usr_lib at container start.
+# Entrypoint hook: link the device-OS FastRPC user-space stack from
+# /host_usr_lib at container start.
 RUN mkdir -p /etc/entrypoint.d
 COPY --chmod=755 npu/npu-setup.sh /etc/entrypoint.d/10-npu-setup.sh
 

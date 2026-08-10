@@ -53,8 +53,6 @@ It also copies the hook-aware [`entrypoint.sh`](entrypoint.sh). At container
 startup that entrypoint sources the hook before launching services and the
 application. The hook:
 
-- aliases the OS FastRPC node `/dev/adsprpc-smd` to the name QNN probes,
-  `/dev/fastrpc-cdsp`;
 - links the required FastRPC libraries from the device OS into the container;
 - exports `ADSP_LIBRARY_PATH` for the application process.
 
@@ -70,7 +68,8 @@ entrypoint and configure device and library passthrough in `oakapp.toml`:
 ```toml
 entrypoint = ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
 optional_devices = [
-    "/dev/adsprpc-smd",
+    "/dev/fastrpc-cdsp", # ONNX Runtime QNN device probe
+    "/dev/adsprpc-smd",  # libcdsprpc.so FastRPC transport
     "/dev/dma_heap/qcom,system",
     "/dev/dma_heap/system",
 ]

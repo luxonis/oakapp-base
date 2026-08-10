@@ -21,14 +21,13 @@ The `oak_webrtc` binaries in this repository handle WebRTC connection establishm
 
 `Dockerfile.onnxruntime` extends the py312 image so `onnxruntime` with the
 QNN execution provider runs on the OAK4 Hexagon NPU out of the box — no
-in-app bootstrapping (`mknod` hacks, library preloading) required. It adds:
+in-app bootstrapping required. It adds:
 
 - `libatomic1` (needed by the QNN EP CPU-side libraries),
 - preinstalled `onnxruntime` + `onnxruntime-qnn`,
 - `ADSP_LIBRARY_PATH=/opt/qnn-libs` pointing at the wheel's Hexagon skels,
-- an `/etc/entrypoint.d/` hook that aliases `/dev/adsprpc-smd` to
-  `/dev/fastrpc-cdsp` (the node name the QNN EP probes for NPU detection)
-  and links the device-OS FastRPC user-space stack (`libcdsprpc.so` + its
+- an `/etc/entrypoint.d/` hook that links the device-OS FastRPC user-space
+  stack (`libcdsprpc.so` + its
   OE dependency chain) into the container's `/usr/lib` from the mounted
   device `/usr/lib`. The FastRPC libraries are proprietary device-OS
   binaries, so they are not shipped in this repository or the image;
@@ -41,7 +40,8 @@ and the device `/usr/lib` through in `oakapp.toml`:
 ```toml
 entrypoint = ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
 optional_devices = [
-    "/dev/adsprpc-smd",
+    "/dev/fastrpc-cdsp", # ONNX Runtime QNN device probe
+    "/dev/adsprpc-smd",  # libcdsprpc.so FastRPC transport
     "/dev/dma_heap/qcom,system",
     "/dev/dma_heap/system",
 ]
@@ -51,7 +51,7 @@ optional_mounts = ["/usr/lib:/host_usr_lib:ro,rbind"]
 # rules for them; without these, opening the nodes fails with EPERM
 # (FastRPC transport error 1002) and the QNN EP falls back to CPU.
 allowed_devices = [
-    { allow = true, type = "c", major = 496, access = "rwm" }, # adsprpc-smd
+    { allow = true, type = "c", major = 496, access = "rw" },  # FastRPC
     { allow = true, type = "c", major = 248, access = "rw" },  # dma_heap
 ]
 ```
