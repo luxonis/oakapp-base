@@ -108,18 +108,16 @@ optional_devices = [
     "/dev/dma_heap/qcom,system", # DMA-BUF heaps for buffer allocation
     "/dev/dma_heap/system",
 ]
-allowed_devices = [
-    { allow = true, type = "c", major = 496, access = "rw" },  # FastRPC
-    { allow = true, type = "c", major = 248, access = "rw" },  # dma_heap
-]
+allowed_devices = [{ allow = true, access = "rw" }]
 ```
 
 The non-obvious part: **oak-agent mounts `optional_devices` nodes into the
 container but does not add device-cgroup allow rules for them.** `open()` on
 the node then fails with `EPERM`, which surfaces as FastRPC transport error
 1002, which the QNN EP swallows into a silent CPU fallback. So
-`allowed_devices` must be written manually. This is arguably an oak-agent bug
-— see roadmap §5.2.
+`allowed_devices` must be written manually. This broad rule applies only to
+devices mounted in the container and avoids hard-coding OS-specific majors.
+It is arguably an oak-agent bug — see roadmap §5.2.
 
 TOML gotcha that bit repeatedly: `optional_devices` / `allowed_devices` /
 `optional_mounts` are *top-level* keys and must appear **before** any
@@ -311,24 +309,23 @@ Known sharp edges (documented, not fixed):
 
 Direct answer to "are we hardcoded to a specific OS?": **current HEAD bakes
 nothing from any specific OS build into the image or repo.** All remaining
-coupling is at *interface* level — names and numbers Luxonis OS currently
+coupling is at *interface* level — device names and library ABI Luxonis OS currently
 exposes — and each has a distinct failure mode. Ordered from most to least
 fragile:
 
 | # | Coupling | Where it lives | Pinned to | Breaks when / how it shows |
 |---|---|---|---|---|
-| 1 | **cgroup majors 496 (FastRPC) / 248 (dma_heap)** | every app's `allowed_devices` | **kernel build** — char majors are *dynamically allocated*; any kernel config change can move them | `open()` → EPERM → FastRPC 1002 → silent CPU fallback. Workaround: blanket `{ allow = true, access = "rw" }` (used by the hackathon root app). Verify with `ls -l /dev/fastrpc-cdsp /dev/adsprpc-smd` on the device. |
-| 2 | **FastRPC soname list** (7 libs, §2.3) | `npu/npu-setup.sh` (fixed list); `bootstrap.py` (dynamic) | OE image contents; sonames (`.so.0`) can bump; ION is a deprecated kernel API that will eventually disappear | hook prints a per-lib WARNING; bootstrap fails with the missing name. `bootstrap.py` is more robust here — it discovers deps from loader errors instead of a fixed list. |
-| 3 | **FastRPC device nodes** (`/dev/fastrpc-cdsp`, `/dev/adsprpc-smd`) | every QNN app's `oakapp.toml` | Luxonis OS device contract | QNN discovery fails without the former; FastRPC transport fails without the latter. |
-| 4 | **`/dev/fastrpc-cdsp` probe** | upstream ORT `soc_utils.cc` | `onnxruntime` **version** (not the OS) | "plugin registered but no NPU EP device was enumerated". Re-verify on ORT upgrades. |
-| 5 | **kernel FastRPC ABI ↔ libcdsprpc** | implicit | matched **by construction** — runtime linking always uses the running OS's own libs | this was the main risk of the abandoned baked-blob approach; gone now. |
-| 6 | **Hexagon arch (V73)** | wheel skel selection | SoC (fixed per product, not per OS release) | the QNN runtime bundles and dispatches per-arch skels; nothing hardcoded on our side. |
-| 7 | **Device QAIRT versions (2.32/2.41)** | — | **not used at all** (§1) | no coupling — the wheel runtime is self-contained. Deliberate decoupling decision. |
-| 8 | glibc ≥ 2.34 / libstdc++ floor | wheel `manylinux_2_34` | container base image (bookworm 2.36 ✓), not the device OS | only if the base image ever moves to an older userland. |
-| 9 | ~~baked FastRPC blobs from OS 1.35.0~~ | *removed* (`onnxruntime-base-pre-squash` only) | was: exactly OS 1.35.0 | historical. |
+| 1 | **FastRPC soname list** (7 libs, §2.3) | `npu/npu-setup.sh` (fixed list); `bootstrap.py` (dynamic) | OE image contents; sonames (`.so.0`) can bump; ION is a deprecated kernel API that will eventually disappear | hook prints a per-lib WARNING; bootstrap fails with the missing name. `bootstrap.py` is more robust here — it discovers deps from loader errors instead of a fixed list. |
+| 2 | **FastRPC device nodes** (`/dev/fastrpc-cdsp`, `/dev/adsprpc-smd`) | every QNN app's `oakapp.toml` | Luxonis OS device contract | QNN discovery fails without the former; FastRPC transport fails without the latter. |
+| 3 | **`/dev/fastrpc-cdsp` probe** | upstream ORT `soc_utils.cc` | `onnxruntime` **version** (not the OS) | "plugin registered but no NPU EP device was enumerated". Re-verify on ORT upgrades. |
+| 4 | **kernel FastRPC ABI ↔ libcdsprpc** | implicit | matched **by construction** — runtime linking always uses the running OS's own libs | this was the main risk of the abandoned baked-blob approach; gone now. |
+| 5 | **Hexagon arch (V73)** | wheel skel selection | SoC (fixed per product, not per OS release) | the QNN runtime bundles and dispatches per-arch skels; nothing hardcoded on our side. |
+| 6 | **Device QAIRT versions (2.32/2.41)** | — | **not used at all** (§1) | no coupling — the wheel runtime is self-contained. Deliberate decoupling decision. |
+| 7 | glibc ≥ 2.34 / libstdc++ floor | wheel `manylinux_2_34` | container base image (bookworm 2.36 ✓), not the device OS | only if the base image ever moves to an older userland. |
+| 8 | ~~baked FastRPC blobs from OS 1.35.0~~ | *removed* (`onnxruntime-base-pre-squash` only) | was: exactly OS 1.35.0 | historical. |
 
 **Bottom line**: nothing requires "Luxonis OS == X.Y.Z". The two most likely
-silent breakages on an OS update are #1 (majors) and #2 (sonames) — both are
+silent breakages on an OS update are #1 (sonames) and #2 (device nodes) — both are
 things the *platform* should own rather than every app's TOML, which is the
 core of the roadmap below. Recommended per-OS-release regression check:
 run `examples/minimal_dsp.py --strict` (hackathon repo) on the new OS; it
@@ -362,18 +359,15 @@ out to matter — **oak-agent/oakctl** and **upstream ONNX Runtime**):
    instead provide a versioned, documented bundle — e.g.
    `/opt/luxonis/npu-runtime/{lib/, MANIFEST}` — containing exactly the
    FastRPC user-space stack blessed for container consumption. Containers
-   mount that one directory; the soname list (audit #2) becomes an OS-internal
+   mount that one directory; the soname list (audit #1) becomes an OS-internal
    concern; the manifest makes breakage diagnosable instead of silent.
-2. **Stabilize the device numbers story** (audit #1): reserve fixed majors in
-   the kernel config, or — better — make the numbers irrelevant by fixing
-   cgroup handling in oak-agent (§5.2.1).
-4. **Resolve FastRPC redistribution with Qualcomm.** If Luxonis obtains the
+2. **Resolve FastRPC redistribution with Qualcomm.** If Luxonis obtains the
    right to redistribute `libcdsprpc.so` + deps (many Qualcomm Linux BSPs do
    ship these openly), the base image can bake them again and the
    `/usr/lib` mount disappears entirely — the pre-squash Dockerfile already
    implements this and can be resurrected. The ABI risk (audit #5) would need
    a CI test per OS release instead.
-5. **(Bigger) Preinstall the QNN/QAIRT runtime as a container-consumable SDK**
+3. **(Bigger) Preinstall the QNN/QAIRT runtime as a container-consumable SDK**
    with headers/version guarantees, so ORT could target the device runtime
    (the `QNN_DEVICE_ERROR_INVALID_CONFIG` failure would need root-causing
    first). Low priority: the wheel-runtime approach works and self-updates
@@ -384,7 +378,7 @@ out to matter — **oak-agent/oakctl** and **upstream ONNX Runtime**):
 1. **Fix `optional_devices` to add matching device-cgroup allow rules
    automatically.** This is the root cause of the worst UX failure (EPERM →
    FastRPC 1002 → *silent* CPU fallback) and removes `allowed_devices` — and
-   with it the kernel-major hardcoding (audit #1) — from every app's TOML.
+   from every app's TOML.
    Arguably a plain bug fix.
 2. **Add a single opt-in feature flag** to `oakapp.toml`, e.g.
    `features = ["npu"]`, that oak-agent expands into the §2.2 + §2.3
@@ -464,7 +458,7 @@ write normal ORT code":
 
 | Priority | Change | Layer | Removes for the user |
 |---|---|---|---|
-| 1 | oak-agent: auto-cgroup for `optional_devices` (§5.2.1) | oak-agent | `allowed_devices` + kernel majors + the silent-fallback trap |
+| 1 | oak-agent: auto-cgroup for `optional_devices` (§5.2.1) | oak-agent | `allowed_devices` + the silent-fallback trap |
 | 2 | `features = ["npu"]` expansion (§5.2.2) | oak-agent/oakctl | the whole TOML block |
 | 3 | publish `-onnxruntime` base image (§5.3.1), later fold hooks into default images (§5.3.2) | base image | special image / vendored bootstrap |
 | 4 | versioned NPU-userspace bundle in the OS (§5.1.1) | OS | soname fragility; makes the mount self-describing |
@@ -482,7 +476,7 @@ ergonomic entry point either way (strict mode, caching, good errors).
 | Symptom | Cause | Fix |
 |---|---|---|
 | `QNN EP unavailable: no FastRPC device node` | required FastRPC node was not passed through | add both nodes from §2.2 `optional_devices` |
-| FastRPC error 1002 in logs / inference runs but ~10–60× too slow (silent CPU fallback) | device node present but cgroup-denied (EPERM) | add §2.2 `allowed_devices`; check majors with `ls -l /dev/fastrpc-cdsp /dev/adsprpc-smd` |
+| FastRPC error 1002 in logs / inference runs but ~10–60× too slow (silent CPU fallback) | device node present but cgroup-denied (EPERM) | add §2.2 `allowed_devices` |
 | `plugin registered but no NPU EP device was enumerated` | `/dev/fastrpc-cdsp` was not passed through | add it to `optional_devices` |
 | `cannot load libcdsprpc.so` | `/usr/lib:/host_usr_lib` mount missing | add §2.3 `optional_mounts` |
 | `libatomic.so.1: cannot open shared object file` | stock base image without apt `libatomic1` and bootstrap not used | use the onnxruntime base image or `oak4ort.bootstrap()` |

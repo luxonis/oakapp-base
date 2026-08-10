@@ -54,7 +54,6 @@ startup that entrypoint sources the hook before launching services and the
 application. The hook:
 
 - links the required FastRPC libraries from the device OS into the container;
-- exports `ADSP_LIBRARY_PATH` for the application process.
 
 See [`entrypoint.md`](entrypoint.md) for the hook lifecycle and
 [`npu/README.md`](npu/README.md) for the hook's detailed behavior.
@@ -74,11 +73,11 @@ optional_devices = [
     "/dev/dma_heap/system",
 ]
 optional_mounts = ["/usr/lib:/host_usr_lib:ro,rbind"]
+allowed_devices = [{ allow = true, access = "rw" }]
 ```
 
-The app must also grant device-cgroup access through `allowed_devices`. The
-device major numbers can vary by OS/kernel build, so inspect the target device
-rather than assuming the example values in the main README are universal.
+The `allowed_devices` rule grants read/write access to the mounted devices
+without pinning OS-specific major numbers.
 
 With that configuration, an app can use the slim helper:
 

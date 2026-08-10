@@ -50,10 +50,9 @@ optional_mounts = ["/usr/lib:/host_usr_lib:ro,rbind"]
 # oak-agent mounts optional_devices but does not add device-cgroup allow
 # rules for them; without these, opening the nodes fails with EPERM
 # (FastRPC transport error 1002) and the QNN EP falls back to CPU.
-allowed_devices = [
-    { allow = true, type = "c", major = 496, access = "rw" },  # FastRPC
-    { allow = true, type = "c", major = 248, access = "rw" },  # dma_heap
-]
+# Grants read/write access to the devices mounted above without pinning
+# OS-specific major numbers.
+allowed_devices = [{ allow = true, access = "rw" }]
 ```
 
 Build (linux/arm64 only):

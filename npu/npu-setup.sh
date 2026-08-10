@@ -13,8 +13,6 @@
 #
 #   optional_mounts = ["/usr/lib:/host_usr_lib:ro,rbind"]
 #
-# The chain is closed: everything else these libraries need (glibc,
-# libstdc++, libgcc) is already in the Debian base.
 _fastrpc_setup() {
   local host_lib=/host_usr_lib
   local libs=(
@@ -49,7 +47,3 @@ _fastrpc_setup() {
 }
 
 _fastrpc_setup
-
-# Hexagon skels must match the CPU-side QNN stub; /opt/qnn-libs points at the
-# preinstalled onnxruntime-qnn wheel libraries (see Dockerfile.onnxruntime).
-export ADSP_LIBRARY_PATH="${ADSP_LIBRARY_PATH:-/opt/qnn-libs}"

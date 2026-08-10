@@ -26,9 +26,9 @@ entrypoint or adding per-app shell wrappers.
 ## Why hooks are sourced
 
 The hooks are sourced (`. "$hook"`) rather than run as child processes. A
-hook can therefore export variables that remain available to the app. The NPU
-hook uses this for `ADSP_LIBRARY_PATH`, which the QNN runtime needs to find
-its DSP-side Hexagon libraries.
+hook can therefore export variables that remain available to the app. This is
+generic behavior for image variants; the ONNX Runtime image sets
+`ADSP_LIBRARY_PATH` in its Dockerfile.
 
 The entrypoint logs and continues if a hook returns non-zero. This keeps the
 mechanism safe for applications that do not use optional base-image features.
@@ -59,11 +59,3 @@ startup order is:
 
 See [`npu/README.md`](npu/README.md) for what the NPU hook configures and the
 device, mount, and cgroup access required from `oakapp.toml`.
-
-## Compatibility note
-
-Some cached custom images predate this hook mechanism. Applications running
-on one of those images must source `10-npu-setup.sh` themselves before
-delegating to `/entrypoint.sh`. The LFM frontend's `start.sh` is an example.
-The NPU hook is idempotent, so this compatibility source is also safe on a
-newer hook-aware entrypoint.
