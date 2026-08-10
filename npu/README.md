@@ -23,8 +23,8 @@ The ONNX Runtime image build copies this source file into the image as:
 ```
 
 `/entrypoint.sh` runs every `*.sh` hook in that directory before launching the
-application. See
-[`entrypoint.md`](../entrypoint.md) for the hook mechanism.
+application. The main [`README.md`](../README.md) describes the ONNX Runtime
+image and required application configuration.
 
 ```text
 oakapp.toml → /entrypoint.sh → npu-setup.sh → Python app → qnn_session()
