@@ -23,10 +23,6 @@ RUN pip install --no-cache-dir --break-system-packages \
 RUN python3 -c "import os, onnxruntime_qnn as q; d = getattr(q, 'LIB_DIR_FULL_PATH', os.path.dirname(q.get_library_path())); os.symlink(d, '/opt/qnn-libs'); print('qnn libs:', d)"
 ENV ADSP_LIBRARY_PATH=/opt/qnn-libs
 
-# Entrypoint hook: link the device-OS FastRPC user-space stack from
-# /host_usr_lib at container start.
-RUN mkdir -p /etc/entrypoint.d
-COPY --chmod=755 npu/npu-setup.sh /etc/entrypoint.d/npu-setup.sh
-
-# Refresh the entrypoint with the hook-aware version from this repo.
-COPY --chmod=755 entrypoint.sh /entrypoint.sh
+# The device OS provides the FastRPC libraries in this mounted directory.
+# Add it to the dynamic linker search path for NPU-enabled applications.
+ENV LD_LIBRARY_PATH=/opt/luxonis/npu-runtime/lib

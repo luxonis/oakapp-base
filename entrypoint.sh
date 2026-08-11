@@ -60,17 +60,6 @@ if [[ "$#" -lt 1 ]]; then
   exit "$MISSING_APP_COMMAND_RC"
 fi
 
-# Source optional setup hooks installed by base image variants
-# (e.g. NPU/FastRPC setup in the onnxruntime image). Hooks must not exit
-# non-zero; they are sourced so they may export environment variables.
-if [ -d /etc/entrypoint.d ]; then
-  for hook in /etc/entrypoint.d/*.sh; do
-    [ -e "$hook" ] || continue
-    echo "[entrypoint] Running hook $hook"
-    . "$hook" || echo "[entrypoint] Hook $hook failed (continuing)"
-  done
-fi
-
 # Start helper services under runit
 echo "[entrypoint] Starting helper scripts at /etc/service/"
 /usr/bin/runsvdir -P /etc/service &

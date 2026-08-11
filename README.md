@@ -44,14 +44,12 @@ with the QNN Execution Provider on the OAK4 Hexagon NPU.
 - preinstalled `onnxruntime` and `onnxruntime-qnn`;
 - `ADSP_LIBRARY_PATH=/opt/qnn-libs`, pointing at the QNN wheel's Hexagon
   libraries;
-- a startup hook that links the device OS FastRPC user-space stack into the
-  container from a read-only host-library mount.
+- `LD_LIBRARY_PATH=/opt/luxonis/npu-runtime/lib`, resolving FastRPC from the
+  OS-provided NPU runtime package.
 
-At startup, `/entrypoint.sh` sources shell hooks in `/etc/entrypoint.d`. The
-ONNX Runtime image installs `npu-setup.sh` there; it links the mounted FastRPC
-libraries before the application starts. `ADSP_LIBRARY_PATH` is set by the
-image itself, so it is also available when an application uses a custom
-entrypoint.
+The required FastRPC libraries are provided by the device OS in
+`/opt/luxonis/npu-runtime/lib`; they are not included in this image. Mount the
+NPU runtime package as shown below.
 
 ### App Dockerfile
 
@@ -69,7 +67,7 @@ ENTRYPOINT ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
 ### `oakapp.toml` configuration
 
 Apps must use the standard entrypoint and pass through the NPU devices and
-device `/usr/lib` in `oakapp.toml`:
+the scoped device NPU runtime package in `oakapp.toml`:
 
 ```toml
 entrypoint = ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
@@ -79,7 +77,9 @@ optional_devices = [
     "/dev/dma_heap/qcom,system",
     "/dev/dma_heap/system",
 ]
-optional_mounts = ["/usr/lib:/host_usr_lib:ro,rbind"]
+
+optional_mounts = ["/opt/luxonis/npu-runtime:/opt/luxonis/npu-runtime:ro,rbind"]
+
 # Grants read/write access to the devices mounted above without pinning
 # OS-specific major numbers.
 allowed_devices = [{ allow = true, access = "rw" }]
@@ -88,8 +88,6 @@ allowed_devices = [{ allow = true, access = "rw" }]
 `/dev/fastrpc-cdsp` is required for ONNX Runtime QNN device discovery, while
 `libcdsprpc.so` uses `/dev/adsprpc-smd` for the actual FastRPC transport. Both
 device entries are required.
-
-For hook details and troubleshooting, see [`npu/README.md`](npu/README.md).
 
 ### Build the ONNX Runtime image
 
