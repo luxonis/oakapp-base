@@ -38,6 +38,8 @@ table above.
 `Dockerfile.onnxruntime` extends the Python 3.12 image to run ONNX Runtime
 with the QNN Execution Provider on the OAK4 Hexagon NPU.
 
+> **Requirement:** The ONNX Runtime image requires Luxonis OS 1.40.0 or later.
+
 ### What it includes
 
 - `libatomic1`, required by the QNN EP CPU-side libraries;
