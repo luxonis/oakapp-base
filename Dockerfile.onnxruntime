@@ -1,0 +1,28 @@
+# ONNX Runtime QNN base image for OAK4.
+# See README.md for application configuration and build instructions.
+
+ARG BASE_IMAGE=luxonis/oakapp-base:1.2.9
+FROM ${BASE_IMAGE} AS oakapp
+
+ARG ONNXRUNTIME_SPEC="onnxruntime==1.28.0"
+ARG ONNXRUNTIME_QNN_SPEC="onnxruntime-qnn==2.4.0"
+
+# Debian runtime deps for the QNN EP CPU-side libraries (libQnnHtp.so & co.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Preinstall ONNX Runtime and the QNN plugin execution provider so apps skip
+# the large pip download at install time.
+RUN pip install --no-cache-dir --break-system-packages \
+    "${ONNXRUNTIME_SPEC}" "${ONNXRUNTIME_QNN_SPEC}"
+
+# Stable path to the wheel's QNN libraries and Hexagon skels. The DSP-side
+# loader resolves skels through ADSP_LIBRARY_PATH; pointing it at the wheel
+# directory keeps the CPU-side stub and the DSP-side skel version-matched.
+RUN python3 -c "import os, onnxruntime_qnn as q; d = getattr(q, 'LIB_DIR_FULL_PATH', os.path.dirname(q.get_library_path())); os.symlink(d, '/opt/qnn-libs'); print('qnn libs:', d)"
+ENV ADSP_LIBRARY_PATH=/opt/qnn-libs
+
+# The device OS provides the FastRPC libraries in this mounted directory.
+# Add it to the dynamic linker search path for NPU-enabled applications.
+ENV LD_LIBRARY_PATH=/opt/luxonis/npu-runtime/lib
