@@ -1,5 +1,5 @@
 # Stage 1: Final minimal image
-FROM luxonis/depthai-library:a1b078ba480981b9e81251bfd37799be644052b9 AS oakapp
+FROM luxonis/depthai-library:v3.10.0 AS oakapp
 
 # Define build argument for architecture
 ARG TARGETARCH
