@@ -13,6 +13,7 @@ build one locally to inspect or customize it.
 | `luxonis/oakapp-base:<version>-py310` | `Dockerfile.py310` | Python 3.10 |
 | `luxonis/oakapp-base:<version>-cpp` | `Dockerfile.c++` | C++ applications |
 | `luxonis/oakapp-base:<version>-onnxruntime` | `Dockerfile.onnxruntime` | ONNX Runtime QNN applications on the OAK4 NPU |
+| `luxonis/oakapp-base:<version>-llamacpp` | `Dockerfile.llamacpp` | llama.cpp 0.5.0 with CPU and Hexagon v73 support (ARM64) |
 
 The Python images are based on `debian:bookworm-slim` and include Python built
 for OAK4.
@@ -94,12 +95,104 @@ device entries are required.
 ### Build the ONNX Runtime image
 
 ```bash
-docker build -f Dockerfile.onnxruntime --platform=linux/arm64 -t oakapp-base:onnxruntime .
+docker buildx build -f Dockerfile.onnxruntime --platform=linux/arm64 \
+  -t oakapp-base:onnxruntime --load .
 ```
+
+The build uses the base image specified in `Dockerfile.onnxruntime`. Override it
+with `--build-arg BASE_IMAGE=luxonis/oakapp-base:<version>` if needed.
+`--load` makes the built image available in the local Docker image store.
+
+## llama.cpp image
+
+`Dockerfile.llamacpp` extends the Python 3.12 image to run llama.cpp v0.5.0
+with CPU and Hexagon v73 support on OAK4 (`linux/arm64`).
+
+> **Requirement:** The llama.cpp image requires Luxonis OS 1.40.0 or later.
+
+### What it includes
+
+- `llama-server`, `llama-cli`, and `llama-bench` on `PATH`;
+- llama.cpp and multimodal libraries, CPU/Hexagon backends, and v73 DSP kernels;
+- C/C++ headers, licenses, and `build-info.json` under `/opt/llama.cpp`;
+- `ADSP_LIBRARY_PATH="/opt/llama.cpp/lib;/usr/lib/rfsa/adsp;/dsp"`, for Hexagon
+  library discovery;
+- `LD_LIBRARY_PATH=/opt/llama.cpp/lib:/opt/luxonis/npu-runtime/lib`, resolving
+  llama.cpp libraries and FastRPC from the OS-provided NPU runtime package.
+
+The required FastRPC libraries are provided by the device OS in
+`/opt/luxonis/npu-runtime/lib`; they are not included in this image. Mount the
+NPU runtime package as shown below. CPU-only applications do not need the NPU
+mount or devices.
+
+Applications supply their own GGUF models and, for vision models, matching
+multimodal projectors. Built-in HTTPS model downloads are disabled. The image
+preserves the standard entrypoint; it does not start `llama-server` automatically.
+
+### App Dockerfile
+
+Build an app image from the llama.cpp base image:
+
+```Dockerfile
+FROM luxonis/oakapp-base:<version>-llamacpp
+
+COPY . /app
+WORKDIR /app
+
+ENTRYPOINT ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
+```
+
+The application can launch the included executables or use the shared libraries.
+
+### `oakapp.toml` configuration
+
+Apps using Hexagon acceleration must use the standard entrypoint and pass
+through the NPU devices and the scoped device NPU runtime package:
+
+```toml
+entrypoint = ["/entrypoint.sh", "python3.12", "-u", "/app/main.py"]
+optional_devices = [
+    "/dev/fastrpc-cdsp",
+    "/dev/adsprpc-smd",
+    "/dev/dma_heap/qcom,system",
+    "/dev/dma_heap/system",
+]
+
+optional_mounts = ["/opt/luxonis/npu-runtime:/opt/luxonis/npu-runtime:ro,rbind"]
+
+# Grants read/write access to the devices mounted above without pinning
+# OS-specific major numbers.
+allowed_devices = [{ allow = true, access = "rw" }]
+```
+
+For example, the application can start a server using Hexagon:
+
+```bash
+llama-server -m /app/models/model.gguf --device HTP0 -ngl 99 \
+  --host 127.0.0.1 --port 8081
+```
+
+For CPU inference, use `--device none -ngl 0`. For a supported vision model,
+add `--mmproj /app/models/projector.gguf --mmproj-device HTP0`, or
+`--mmproj /app/models/projector.gguf --no-mmproj-offload` for CPU inference.
+Individual unsupported operations can still run on CPU when using Hexagon.
+
+### Build the llama.cpp image
+
+On an x86_64 Docker host, cross-compile the ARM64 image:
+
+```bash
+docker buildx build -f Dockerfile.llamacpp --platform=linux/arm64 \
+  -t oakapp-base:llamacpp --load .
+```
+
+The build uses the base image specified in `Dockerfile.llamacpp`. Override it
+with `--build-arg BASE_IMAGE=luxonis/oakapp-base:<version>` if needed.
+`--load` makes the built image available in the local Docker image store.
 
 ## Luxonis Maintainer Release Steps
 
-Preferred path: run the **Release images** workflow (`.github/workflows/release.yml`) with the image version and, optionally, an explicit `oak_webrtc` version. It builds all four images for `linux/amd64,linux/arm64` and pushes them to Docker Hub and Quay.
+Preferred path: run the **Release images** workflow (`.github/workflows/release.yml`) with the image version and, optionally, an explicit `oak_webrtc` version. It builds the four standard images for `linux/amd64,linux/arm64`, then the ONNX Runtime and llama.cpp variants for `linux/arm64`, and pushes them to Docker Hub and Quay.
 
 The manual equivalent, for maintainers with registry permissions:
 
@@ -108,6 +201,12 @@ Run the scripted sequence:
 ```bash
 scripts/build-and-push-release-images.sh 1.3.0
 ```
+
+`PLATFORMS` defaults to `linux/amd64,linux/arm64` and may be set to
+`linux/arm64` or `linux/amd64` for a single-architecture release. Only these two
+architectures are accepted. The ONNX Runtime and llama.cpp variants build only
+when `PLATFORMS` includes `linux/arm64`; otherwise, the script builds the four
+standard images and skips those two variants.
 
 ## Build images locally
 

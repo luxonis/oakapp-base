@@ -1,0 +1,64 @@
+# llama.cpp base image for OAK4.
+# See README.md for application configuration and build instructions.
+
+# Define base and toolchain images
+ARG BASE_IMAGE=luxonis/oakapp-base:1.4.0
+ARG HEXAGON_TOOLCHAIN=ghcr.io/snapdragon-toolchain/arm64-linux:v0.7@sha256:41b710ee5f99d21f0fb9d83a1f815ecffb7708315b4218a11cd0baeb5ecf4c14
+
+# Stage 1: Pinned Hexagon SDK
+FROM --platform=linux/amd64 ${HEXAGON_TOOLCHAIN} AS hexagon-sdk
+
+# Stage 2: Cross-compile ARM64 binaries on x86_64 using the Debian 12 runtime ABI
+FROM --platform=linux/amd64 debian:bookworm-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    git \
+    cmake \
+    ninja-build \
+    clang \
+    lld \
+    python3 \
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
+    zlib1g \
+    libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure the Hexagon SDK and compiler
+COPY --from=hexagon-sdk /opt/hexagon /opt/hexagon
+ENV HEXAGON_SDK_ROOT=/opt/hexagon/6.6.0.0 \
+    HEXAGON_TOOLS_ROOT=/opt/hexagon/6.6.0.0/tools/HEXAGON_Tools/19.0.07
+
+# Download pinned llama.cpp sources and require an ARM64 target
+ARG TARGETARCH
+ARG LLAMA_VERSION=0.5.0
+ARG LLAMA_COMMIT=7fe450e19305b828c199d602c23a8337aaa1f03b
+ARG BUILD_JOBS=4
+RUN test "$TARGETARCH" = arm64 \
+    && git clone --depth 1 --branch "v${LLAMA_VERSION}" https://github.com/ggml-org/llama.cpp.git /src \
+    && test "$(git -C /src rev-parse HEAD)" = "$LLAMA_COMMIT"
+
+# Build llama.cpp tools and CPU / Hexagon v73 libraries
+COPY scripts/build-llamacpp.sh /build-llamacpp.sh
+RUN BUILD_JOBS="$BUILD_JOBS" LLAMA_VERSION="$LLAMA_VERSION" LLAMA_COMMIT="$LLAMA_COMMIT" \
+    bash /build-llamacpp.sh
+
+# Create tool symlinks for the runtime image
+RUN mkdir /launchers && for tool in llama-server llama-cli llama-bench; do \
+    ln -s "/opt/llama.cpp/bin/$tool" "/launchers/$tool"; done
+
+# Stage 3: Final runtime image, inheriting the base entrypoint
+FROM ${BASE_IMAGE} AS oakapp
+
+# Copy compiled binaries, libraries, headers, and build metadata
+COPY --from=builder /out/ /opt/llama.cpp/
+
+# Expose tools to the entrypoint's login shell, which resets PATH
+COPY --from=builder /launchers/ /usr/local/bin/
+
+# Configure executable, shared library, and DSP search paths
+ENV PATH=/opt/llama.cpp/bin:${PATH} \
+    LD_LIBRARY_PATH=/opt/llama.cpp/lib:/opt/luxonis/npu-runtime/lib \
+    ADSP_LIBRARY_PATH="/opt/llama.cpp/lib;/usr/lib/rfsa/adsp;/dsp"
