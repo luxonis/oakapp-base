@@ -13,7 +13,7 @@ build one locally to inspect or customize it.
 | `luxonis/oakapp-base:<version>-py310` | `Dockerfile.py310` | Python 3.10 |
 | `luxonis/oakapp-base:<version>-cpp` | `Dockerfile.c++` | C++ applications |
 | `luxonis/oakapp-base:<version>-onnxruntime` | `Dockerfile.onnxruntime` | ONNX Runtime QNN applications on the OAK4 NPU |
-| `luxonis/oakapp-base:<version>-llamacpp` | `Dockerfile.llamacpp` | llama.cpp 0.5.0 with CPU and Hexagon v73 support (ARM64) |
+| `luxonis/oakapp-base:<version>-llamacpp` | `Dockerfile.llamacpp` | llama.cpp 0.6.0 with CPU and Hexagon v73 support (ARM64) |
 
 The Python images are based on `debian:bookworm-slim` and include Python built
 for OAK4.
@@ -105,7 +105,7 @@ with `--build-arg BASE_IMAGE=luxonis/oakapp-base:<version>` if needed.
 
 ## llama.cpp image
 
-`Dockerfile.llamacpp` extends the Python 3.12 image to run llama.cpp v0.5.0
+`Dockerfile.llamacpp` extends the Python 3.12 image to run llama.cpp v0.6.0
 with CPU and Hexagon v73 support on OAK4 (`linux/arm64`).
 
 > **Requirement:** The llama.cpp image requires Luxonis OS 1.40.0 or later.
