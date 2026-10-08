@@ -33,8 +33,8 @@ ENV HEXAGON_SDK_ROOT=/opt/hexagon/6.6.0.0 \
 
 # Download pinned llama.cpp sources and require an ARM64 target
 ARG TARGETARCH
-ARG LLAMA_VERSION=0.5.0
-ARG LLAMA_COMMIT=7fe450e19305b828c199d602c23a8337aaa1f03b
+ARG LLAMA_VERSION=0.6.0
+ARG LLAMA_COMMIT=d81235049384534c167caea52b85a694f6103d14
 ARG BUILD_JOBS=4
 RUN test "$TARGETARCH" = arm64 \
     && git clone --depth 1 --branch "v${LLAMA_VERSION}" https://github.com/ggml-org/llama.cpp.git /src \
