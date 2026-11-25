@@ -4,8 +4,10 @@ FROM luxonis/depthai-library:v3.10.0 AS oakapp
 # Define build argument for architecture
 ARG TARGETARCH
 
-# Install runtime dependencies and create symlinks
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install runtime dependencies. The base image already provides Python 3,
+# pip, git, and the build toolchain; --no-upgrade avoids duplicating its
+# packages in this layer.
+RUN apt-get update && apt-get install -y --no-install-recommends --no-upgrade \
     libssl3 \
     libsqlite3-0 \
     libffi8 \
@@ -19,18 +21,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     jq \
     git \
-    gettext \
-	glibc-source \
-    && ln -s /usr/local/python3.10/bin/python3.10 /usr/local/bin/python \
-    && ln -s /usr/local/python3.10/bin/python3.10 /usr/local/bin/python3 \
-    && ln -s /usr/local/python3.10/bin/python3.10 /usr/local/bin/python3.10 \
-    && ln -s /usr/local/python3.10/bin/pip3.10 /usr/local/bin/pip \
-    && ln -s /usr/local/python3.10/bin/pip3.10 /usr/local/bin/pip3
-
-# Install DepthAI OS dependencies
-RUN apt-get install -y libgl1 \
+    gettext-base \
+    libgl1 \
     libxrender1 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
+    && ln -s /usr/bin/pip3 /usr/local/bin/pip
 
 # Create service directories
 RUN mkdir -p /etc/service/nginx /etc/service/oak_webrtc /etc/service/connection

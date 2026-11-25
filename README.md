@@ -232,6 +232,16 @@ docker buildx build -f Dockerfile.py312 --platform=linux/arm64 \
 - `nginx` for static files and reverse proxying; self-signed certificates are
   generated during the image build.
 - `runit` for service supervision.
+- `git`, `curl`, `wget`, `jq`, `openssl`, and `envsubst`.
+
+The Python images keep only what applications need at runtime: the Python test
+suite, IDLE/Tk, the static `libpython`, `-O`/`-OO` bytecode, and debug symbols
+are removed (see [`scripts/trim-python.sh`](scripts/trim-python.sh)). `pip`,
+`venv`, and the C headers needed to build extensions are included.
+
+`libGL.so.1` is provided so that `opencv-python` imports, but the Mesa drivers
+are not (see [`scripts/install-libgl.sh`](scripts/install-libgl.sh)). Apps that
+render with OpenGL install them with `apt-get install -y libgl1`.
 
 ### `oak_webrtc`
 
